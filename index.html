@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Universal Downloader Pro</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;500;700;800&display=swap" rel="stylesheet">
+
+    <style>
+        /* --- RESET & BASE --- */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: #0f172a;
+            color: #fff;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            overflow-x: hidden;
+            transition: background-color 0.5s ease;
+        }
+
+        /* --- BACKGROUND ANIMATION --- */
+        body::before {
+            content: '';
+            position: fixed;
+            top: -50%; left: -50%; width: 200%; height: 200%;
+            background: radial-gradient(circle, var(--glow-1, rgba(76, 29, 149, 0.4)) 0%, rgba(15, 23, 42, 0) 50%),
+            radial-gradient(circle, var(--glow-2, rgba(56, 189, 248, 0.2)) 0%, rgba(15, 23, 42, 0) 60%);
+            background-size: 100% 100%;
+            animation: moveBackground 15s ease-in-out infinite alternate;
+            z-index: -1;
+            transition: 1s ease;
+        }
+
+        body.theme-youtube::before { --glow-1: rgba(220, 38, 38, 0.3); --glow-2: rgba(15, 23, 42, 0); }
+        body.theme-tiktok::before { --glow-1: rgba(34, 211, 238, 0.2); --glow-2: rgba(232, 28, 255, 0.2); }
+        body.theme-instagram::before { --glow-1: rgba(245, 158, 11, 0.2); --glow-2: rgba(217, 70, 239, 0.2); }
+        body.theme-facebook::before { --glow-1: rgba(37, 99, 235, 0.3); --glow-2: rgba(15, 23, 42, 0); }
+
+        @keyframes moveBackground {
+            0% { transform: translate(0, 0); }
+            100% { transform: translate(-50px, -50px); }
+        }
+
+        /* --- LAYOUT WRAPPER --- */
+        .app-wrapper {
+            display: flex;
+            gap: 30px;
+            align-items: flex-start;
+            max-width: 1100px;
+            width: 100%;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* --- SIDEBAR --- */
+        .sidebar {
+            background: rgba(30, 41, 59, 0.6);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 24px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            position: sticky;
+            top: 20px;
+            height: fit-content;
+        }
+
+        .nav-item {
+            width: 60px; height: 60px;
+            border-radius: 16px;
+            display: flex; justify-content: center; align-items: center;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid transparent;
+        }
+
+        .nav-item svg { width: 28px; height: 28px; fill: #94a3b8; transition: 0.3s; }
+        .nav-item:hover { transform: translateY(-3px); background: rgba(255, 255, 255, 0.1); }
+        .nav-item.active { background: #fff; box-shadow: 0 0 20px rgba(255, 255, 255, 0.2); }
+
+        .nav-item[data-platform="youtube"].active svg { fill: #ef4444; }
+        .nav-item[data-platform="tiktok"].active svg { fill: #000; }
+        .nav-item[data-platform="instagram"].active svg { fill: #d62976; }
+        .nav-item[data-platform="facebook"].active svg { fill: #1877f2; }
+        .nav-item:not(.active):hover svg { fill: #fff; }
+
+        /* --- CONTENT AREA --- */
+        .content-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        /* --- MAIN CARD --- */
+        .main-card {
+            background: rgba(30, 41, 59, 0.4);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 30px;
+            padding: 50px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            transition: all 0.4s ease;
+        }
+
+        .header { text-align: center; margin-bottom: 40px; }
+        .header h1 {
+            font-size: 3.5rem; font-weight: 800; letter-spacing: -1px; margin-bottom: 10px;
+            background: linear-gradient(to right, #60a5fa, #c084fc, #f472b6);
+            -webkit-background-clip: text; background-clip: text; color: transparent;
+        }
+        .header p { font-size: 1.1rem; color: #94a3b8; font-weight: 300; }
+
+        .input-wrapper { position: relative; margin-bottom: 30px; }
+        input {
+            width: 100%; padding: 20px 30px; font-size: 1.1rem;
+            background: rgba(15, 23, 42, 0.6);
+            border: 2px solid rgba(255, 255, 255, 0.05);
+            border-radius: 20px; color: #fff; font-family: 'Outfit', sans-serif;
+            transition: all 0.3s;
+        }
+        input:focus {
+            outline: none; border-color: #818cf8; background: rgba(15, 23, 42, 0.8);
+            box-shadow: 0 0 0 4px rgba(129, 140, 248, 0.2);
+        }
+
+        .format-selector { display: flex; gap: 15px; margin-bottom: 25px; }
+        .format-btn {
+            flex: 1; padding: 15px; border: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.03); color: #94a3b8;
+            border-radius: 15px; cursor: pointer; font-weight: 600; transition: all 0.3s;
+            font-family: 'Outfit', sans-serif;
+        }
+        .format-btn.active {
+            background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
+            border-color: transparent; color: white;
+            box-shadow: 0 10px 20px -10px rgba(168, 85, 247, 0.5);
+        }
+
+        .quality-selector, #audioQualitySelector {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+            gap: 10px; margin-bottom: 30px;
+        }
+        .quality-btn {
+            padding: 10px; border: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.03); color: #94a3b8;
+            border-radius: 12px; cursor: pointer; font-weight: 500; transition: all 0.2s;
+        }
+        .quality-btn:hover { color: #fff; border-color: #6366f1; }
+        .quality-btn.active { background: #fff; color: #0f172a; font-weight: 700; }
+
+        /* --- VIDEO INFO (FĂRĂ THUMBNAIL) --- */
+        .video-info {
+            display: none;
+            background: rgba(255, 255, 255, 0.05);
+            padding: 20px;
+            border-radius: 20px;
+            margin-bottom: 20px;
+            border-left: 4px solid #818cf8;
+            animation: fadeIn 0.5s;
+        }
+        .video-info.show { display: block; }
+        .video-info h3 { margin: 0 0 5px 0; font-size: 1.1rem; color: #fff; }
+        .video-info p { margin: 0; font-size: 0.9rem; color: #94a3b8; }
+
+        /* --- STATUS & TRANSCRIPT --- */
+        .loading { display: none; text-align: center; padding: 40px; animation: fadeIn 0.5s; }
+        .loading.show { display: block; }
+        .spinner { width: 50px; height: 50px; border: 3px solid rgba(255,255,255,0.1); border-top-color: #818cf8; border-radius: 50%; animation: spin 1s infinite; margin: 0 auto 15px; }
+
+        .status-card {
+            display: none; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3);
+            color: #34d399; padding: 25px; border-radius: 20px; text-align: center; margin-top: 20px;
+        }
+        .status-card.show { display: block; animation: slideUp 0.4s; }
+
+        .transcript-section { display: none; margin-top: 30px; gap: 20px; }
+        .transcript-section.show { display: grid; grid-template-columns: 1fr 1fr; animation: fadeIn 0.5s; }
+
+        .transcript-box {
+            background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 20px; padding: 20px; height: 400px; display: flex; flex-direction: column;
+        }
+        .transcript-box h3 { font-size: 0.9rem; color: #94a3b8; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; }
+
+        .btn-group { display: flex; gap: 8px; }
+        .action-btn {
+            background: rgba(255, 255, 255, 0.1); border: none; color: #fff;
+            padding: 6px 12px; border-radius: 8px; font-size: 0.75rem; cursor: pointer; transition: 0.2s;
+        }
+        .action-btn:hover { background: #fff; color: #000; }
+        .action-btn.txt { background: rgba(52, 211, 153, 0.2); color: #34d399; }
+        .action-btn.txt:hover { background: #34d399; color: #000; }
+
+        .transcript-content {
+            flex: 1; background: rgba(0, 0, 0, 0.2); border-radius: 12px; padding: 15px;
+            overflow-y: auto; color: #e2e8f0; line-height: 1.6; font-size: 0.95rem; white-space: pre-wrap;
+        }
+
+        .error { display: none; }
+        .error.show { display: block; background: rgba(239, 68, 68, 0.1); color: #fca5a5; padding: 15px; border-radius: 12px; margin-top: 20px; }
+
+        /* --- HISTORY SECTION (TEXT ONLY) --- */
+        .history-section {
+            background: rgba(30, 41, 59, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 24px;
+            padding: 25px;
+            margin-top: 0;
+        }
+        .history-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .history-header h3 { font-size: 1.1rem; color: #e2e8f0; }
+        .clear-btn { font-size: 0.8rem; color: #94a3b8; cursor: pointer; background: none; border: none; }
+        .clear-btn:hover { color: #fca5a5; }
+
+        .history-list { list-style: none; display: flex; flex-direction: column; gap: 10px; }
+        .history-item {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 15px; background: rgba(255, 255, 255, 0.03);
+            border-radius: 12px; cursor: pointer; transition: 0.2s;
+        }
+        .history-item:hover { background: rgba(255, 255, 255, 0.08); transform: translateX(5px); }
+        .h-info h4 { font-size: 0.95rem; margin: 0 0 4px 0; color: #cbd5e1; }
+        .h-info span { font-size: 0.75rem; color: #64748b; }
+        .h-arrow { color: #94a3b8; font-size: 1.2rem; }
+
+        @media (max-width: 900px) {
+            .app-wrapper { flex-direction: column; align-items: center; }
+            .sidebar { flex-direction: row; width: 100%; justify-content: center; }
+            .content-area { width: 100%; }
+            .transcript-section.show { grid-template-columns: 1fr; }
+        }
+
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+    </style>
+</head>
+<body class="theme-youtube">
+
+<div class="app-wrapper">
+
+    <div class="sidebar">
+        <div class="nav-item active" data-platform="youtube" onclick="changePlatform('youtube', 'Paste YouTube link...')">
+            <svg viewBox="0 0 24 24"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+        </div>
+        <div class="nav-item" data-platform="tiktok" onclick="changePlatform('tiktok', 'Paste TikTok link...')">
+            <svg viewBox="0 0 24 24"><path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.65-1.58-1.08-.01.55-.02 1.1-.02 1.65-.02 3.8-2.6 7.53-6.4 8.28-4.22.84-8.39-1.93-9.15-6.16-.62-3.4 1.34-6.9 4.62-7.98.53-.18 1.1-.28 1.66-.28v4.06c-.85.03-1.68.39-2.22 1.05-.66.8-.75 2-.24 2.89.6.98 1.73 1.5 2.82 1.32 1.55-.26 2.63-1.74 2.45-3.29-.01-2.92.01-5.85.01-8.77-.02-.87-.02-1.75-.02-2.62z"/></svg>
+        </div>
+        <div class="nav-item" data-platform="instagram" onclick="changePlatform('instagram', 'Paste Instagram link...')">
+            <svg viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 1 0 0 12.324 6.162 6.162 0 0 0 0-12.324zM12 16a4 4 0 1 1 0-8 4 4 0 0 1 0 8zm6.406-11.845a1.44 1.44 0 1 0 0 2.881 1.44 1.44 0 0 0 0-2.881z"/></svg>
+        </div>
+        <div class="nav-item" data-platform="facebook" onclick="changePlatform('facebook', 'Paste Facebook link...')">
+            <svg viewBox="0 0 24 24"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+        </div>
+    </div>
+
+    <div class="content-area">
+        <div class="main-card">
+            <div class="header">
+                <h1 id="pageTitle">YouTube Downloader</h1>
+                <p id="pageSubtitle">Next-Gen Downloader & AI Translator</p>
+            </div>
+
+            <div class="input-group">
+                <div class="input-wrapper">
+                    <input type="text" id="urlInput" placeholder="Paste YouTube Link here..." autocomplete="off">
+                </div>
+            </div>
+
+            <div class="format-selector">
+                <button class="format-btn active" data-format="mp4" onclick="selectFormat('mp4')">VIDEO</button>
+                <button class="format-btn" data-format="mp3" onclick="selectFormat('mp3')">AUDIO</button>
+            </div>
+
+            <div class="quality-selector" id="qualitySelector">
+                <button class="quality-btn" data-quality="360" onclick="selectQuality('360')">360p</button>
+                <button class="quality-btn" data-quality="480" onclick="selectQuality('480')">480p</button>
+                <button class="quality-btn" data-quality="720" onclick="selectQuality('720')">720p</button>
+                <button class="quality-btn active" data-quality="1080" onclick="selectQuality('1080')">1080p</button>
+                <button class="quality-btn" data-quality="1440" onclick="selectQuality('1440')">2K</button>
+                <button class="quality-btn" data-quality="2160" onclick="selectQuality('2160')">4K</button>
+            </div>
+
+            <div class="quality-selector" id="audioQualitySelector" style="display: none;">
+                <button class="quality-btn" data-quality="128" onclick="selectQuality('128')">128kbps</button>
+                <button class="quality-btn active" data-quality="192" onclick="selectQuality('192')">192kbps</button>
+                <button class="quality-btn" data-quality="320" onclick="selectQuality('320')">320kbps</button>
+            </div>
+
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <p class="loading-text">Analyzing...</p>
+            </div>
+
+            <div class="error" id="error"></div>
+
+            <div class="video-info" id="videoInfo"></div>
+
+            <div class="status-card" id="statusCard">
+                <h3>🚀 Download Initiated</h3>
+                <p>Check your downloads folder.</p>
+            </div>
+
+            <div class="transcript-section" id="transcriptSection">
+                <div class="transcript-box">
+                    <h3>Original
+                        <div class="btn-group">
+                            <button class="action-btn txt" onclick="downloadTxt('original')">💾 TXT</button>
+                            <button class="action-btn" onclick="copyTranscript('original')">COPY</button>
+                        </div>
+                    </h3>
+                    <div class="transcript-content" id="originalTranscript"></div>
+                </div>
+                <div class="transcript-box">
+                    <h3>Romanian AI
+                        <div class="btn-group">
+                            <button class="action-btn txt" onclick="downloadTxt('translation')">💾 TXT</button>
+                            <button class="action-btn" onclick="copyTranscript('translation')">COPY</button>
+                        </div>
+                    </h3>
+                    <div class="transcript-content" id="translatedTranscript"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="history-section" id="historySection" style="display: none;">
+            <div class="history-header">
+                <h3>📜 Recent Downloads</h3>
+                <button class="clear-btn" onclick="clearHistory()">Clear History</button>
+            </div>
+            <ul class="history-list" id="historyList">
+            </ul>
+        </div>
+    </div>
+</div>
+
+<script>
+    // După ce dai deploy, Railway îți va da un domeniu de forma 'nume-app.up.railway.app'
+    const SERVER_ENDPOINT = window.location.hostname === 'localhost'
+        ? 'http://localhost:3003'
+        : 'https://numele-tau-de-aplicatie.up.railway.app';
+    let selectedFormat = 'mp4';
+    let currentVideoUrl = '';
+    let currentPlatform = 'youtube';
+    let debounceTimer;
+
+    // Elemente UI
+    const urlInput = document.getElementById('urlInput');
+    const loading = document.getElementById('loading');
+    const error = document.getElementById('error');
+    const videoInfo = document.getElementById('videoInfo');
+    const statusCard = document.getElementById('statusCard');
+    const transcriptSection = document.getElementById('transcriptSection');
+    const originalTranscript = document.getElementById('originalTranscript');
+    const translatedTranscript = document.getElementById('translatedTranscript');
+    const historySection = document.getElementById('historySection');
+    const historyList = document.getElementById('historyList');
+
+    // Inițializare
+    loadHistory();
+
+    // --- SCHIMBARE FORMAT (Video vs Audio) ---
+    function selectFormat(format) {
+        selectedFormat = format;
+        document.querySelectorAll('.format-btn').forEach(btn => btn.classList.remove('active'));
+        document.querySelector(`[data-format="${format}"]`).classList.add('active');
+
+        document.getElementById('qualitySelector').style.display = 'none';
+        document.getElementById('audioQualitySelector').style.display = 'none';
+    }
+
+    function selectQuality(quality) {
+        document.querySelectorAll('.quality-btn').forEach(btn => btn.classList.remove('active'));
+        event.target.classList.add('active');
+    }
+
+    // --- VALIDARE PLATFORMĂ ---
+    function validatePlatformUrl(url, expectedPlatform) {
+        const urlLower = url.toLowerCase();
+
+        const platformPatterns = {
+            youtube: ['youtube.com', 'youtu.be'],
+            tiktok: ['tiktok.com'],
+            instagram: ['instagram.com'],
+            facebook: ['facebook.com', 'fb.watch', 'fb.com']
+        };
+
+        const patterns = platformPatterns[expectedPlatform];
+        if (!patterns) return false;
+
+        return patterns.some(pattern => urlLower.includes(pattern));
+    }
+
+    // --- FUNCȚIA PRINCIPALĂ DE PROCESARE ---
+    async function processVideo(url = null) {
+        const targetUrl = url || urlInput.value.trim();
+        currentVideoUrl = targetUrl;
+
+        if (!targetUrl || targetUrl.length < 5) return;
+
+        // VALIDARE: Verifică dacă URL-ul e de pe platforma corectă
+        if (!validatePlatformUrl(targetUrl, currentPlatform)) {
+            error.textContent = `❌ Eroare: Link-ul nu este de pe ${currentPlatform.toUpperCase()}. Selectează platforma corectă din sidebar.`;
+            error.classList.add('show');
+            return;
+        }
+
+        loading.classList.add('show');
+        error.classList.remove('show');
+        videoInfo.classList.remove('show');
+        statusCard.classList.remove('show');
+        transcriptSection.classList.remove('show');
+
+        loading.querySelector('.loading-text').textContent = "Se descarcă și se traduce cu AI... ⏳";
+
+        try {
+            console.log("Trimitem cerere la server:", targetUrl);
+
+            const response = await fetch(`${SERVER_ENDPOINT}/api/download?url=${encodeURIComponent(targetUrl)}`);
+
+            if (!response.ok) {
+                const errJson = await response.json();
+                throw new Error(errJson.error || `Eroare server: ${response.status}`);
+            }
+
+            const data = await response.json();
+            console.log("Răspuns primit:", data);
+
+            if (data.status === 'ok') {
+                const formats = data.data.formats;
+                let downloadLink = null;
+
+                if (selectedFormat === 'mp4') {
+                    downloadLink = formats.find(f => f.url.includes('type=video')) || formats[0];
+                } else {
+                    downloadLink = formats.find(f => f.url.includes('type=audio'));
+                }
+
+                if (!downloadLink) {
+                    throw new Error("Nu am găsit un link de download valid.");
+                }
+
+                let infoHtml = `
+                    <h3>🎥 ${data.data.title}</h3>
+                    <p>⏱️ ${data.data.duration} • 📦 ${selectedFormat.toUpperCase()}</p>
+                `;
+                videoInfo.innerHTML = infoHtml;
+                videoInfo.classList.add('show');
+                statusCard.classList.add('show');
+
+                const link = document.createElement('a');
+                link.href = downloadLink.url;
+                link.setAttribute('download', '');
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+
+                addToHistory(data.data.title, targetUrl);
+
+                // Afișăm transcriptul DOAR pentru YouTube
+                if (currentPlatform === 'youtube' && data.data.transcript) {
+                    originalTranscript.textContent = data.data.transcript.original || "Fără text.";
+                    translatedTranscript.textContent = data.data.transcript.translated || "Traducere indisponibilă.";
+                    transcriptSection.classList.add('show');
+                }
+
+            } else {
+                throw new Error("Răspuns invalid de la server.");
+            }
+
+        } catch (err) {
+            console.error(err);
+            error.textContent = '❌ Eroare: ' + err.message;
+            error.classList.add('show');
+        } finally {
+            loading.classList.remove('show');
+        }
+    }
+
+    // --- INPUT AUTOMAT (Paste & Go) ---
+    urlInput.addEventListener('input', () => {
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(() => {
+            const val = urlInput.value.trim();
+            if (val.length > 10 && val.startsWith('http')) {
+                processVideo(val);
+            }
+        }, 1000);
+    });
+
+    // --- COPY / DOWNLOAD TXT ---
+    function copyTranscript(type) {
+        const textId = type === 'original' ? 'originalTranscript' : 'translatedTranscript';
+        const text = document.getElementById(textId).textContent;
+        navigator.clipboard.writeText(text).then(() => alert("Text copiat!"));
+    }
+
+    function downloadTxt(type) {
+        const textId = type === 'original' ? 'originalTranscript' : 'translatedTranscript';
+        const text = document.getElementById(textId).textContent;
+        const element = document.createElement('a');
+        const file = new Blob([text], {type: 'text/plain'});
+        element.href = URL.createObjectURL(file);
+        element.download = `transcript_${type}.txt`;
+        document.body.appendChild(element);
+        element.click();
+        document.body.removeChild(element);
+    }
+
+    // --- ISTORIC ---
+    function addToHistory(title, url) {
+        let history = JSON.parse(localStorage.getItem('dl_history') || '[]');
+        history = history.filter(h => h.url !== url);
+        history.unshift({ title, url, date: new Date().toLocaleTimeString() });
+        if(history.length > 5) history.pop();
+
+        localStorage.setItem('dl_history', JSON.stringify(history));
+        renderHistory();
+    }
+
+    function loadHistory() { renderHistory(); }
+
+    function renderHistory() {
+        let history = JSON.parse(localStorage.getItem('dl_history') || '[]');
+        if (history.length === 0) {
+            historySection.style.display = 'none';
+            return;
+        }
+        historySection.style.display = 'block';
+        historyList.innerHTML = history.map(item => `
+            <li class="history-item" onclick="urlInput.value='${item.url}'; processVideo('${item.url}')">
+                <div class="h-info">
+                    <h4>${item.title.substring(0, 40)}...</h4>
+                    <span>${item.date}</span>
+                </div>
+                <div class="h-arrow">🔄</div>
+            </li>
+        `).join('');
+    }
+
+    function clearHistory() {
+        localStorage.removeItem('dl_history');
+        renderHistory();
+    }
+
+    // --- SCHIMBARE PLATFORMĂ ---
+    function changePlatform(platform, placeholder) {
+        currentPlatform = platform;
+
+        // Reset UI subtil (fără flash vizibil)
+        urlInput.value = '';
+        videoInfo.classList.remove('show');
+        statusCard.classList.remove('show');
+        transcriptSection.classList.remove('show');
+        error.classList.remove('show');
+        loading.classList.remove('show');
+
+        document.body.className = `theme-${platform}`;
+        document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+        document.querySelector(`[data-platform="${platform}"]`).classList.add('active');
+        urlInput.placeholder = placeholder;
+
+        const pageTitle = document.getElementById('pageTitle');
+        const pageSubtitle = document.getElementById('pageSubtitle');
+
+        switch(platform) {
+            case 'youtube':
+                pageTitle.textContent = 'YouTube Downloader';
+                pageSubtitle.textContent = 'Next-Gen Downloader & AI Translator';
+                break;
+            case 'tiktok':
+                pageTitle.textContent = 'TikTok Downloader';
+                pageSubtitle.textContent = 'Download TikTok videos instantly';
+                break;
+            case 'instagram':
+                pageTitle.textContent = 'Instagram Downloader';
+                pageSubtitle.textContent = 'Download Instagram content easily';
+                break;
+            case 'facebook':
+                pageTitle.textContent = 'Facebook Downloader';
+                pageSubtitle.textContent = 'Download Facebook videos & content';
+                break;
+        }
+    }
+</script>
+</body>
+</html>
