@@ -1,23 +1,23 @@
 {
   "name": "youtubepro",
   "version": "1.0.0",
-  "description": "",
+  "description": "Universal Video Downloader with AI Translation",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev": "nodemon server.js"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "type": "commonjs",
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  },
   "dependencies": {
-    "@vitalets/google-translate-api": "^9.2.1",
-    "axios": "^1.13.2",
+    "express": "^4.18.2",
     "cors": "^2.8.5",
-    "express": "^5.2.1",
-    "fluent-ffmpeg": "^2.1.3",
-    "multer": "^2.0.2",
-    "youtube-dl-exec": "^3.0.28"
+    "axios": "^1.6.0",
+    "@vitalets/google-translate-api": "^9.2.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
   }
 }

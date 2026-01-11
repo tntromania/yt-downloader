@@ -8,19 +8,31 @@ const { translate } = require('@vitalets/google-translate-api');
 
 const app = express();
 
-app.use(cors());
+// CORS configurat corect pentru Netlify
+app.use(cors({
+    origin: ['https://adorable-naiad-60e1be.netlify.app', 'http://localhost:5500'],
+    credentials: true
+}));
+
 app.use(express.json());
 
 // Detectăm dacă rulăm pe Windows sau pe Linux (Railway)
 const isWindows = process.platform === "win32";
-// Pe Windows folosim fișierul tău .exe, pe Railway folosim 'yt-dlp' instalat global
 const YTDLP_PATH = isWindows ? path.join(__dirname, 'yt-dlp.exe') : 'yt-dlp';
+
+// API KEY (pune-l în Railway Environment Variables!)
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY || '';
 
 // Portul trebuie să fie dinamic pentru Railway
 const PORT = process.env.PORT || 3003;
 
-app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Server running on port ${PORT}`);
+// Health check pentru Railway
+app.get('/', (req, res) => {
+    res.json({ status: 'ok', message: 'YouTube Downloader Pro API' });
+});
+
+app.get('/health', (req, res) => {
+    res.json({ status: 'healthy' });
 });
 
 // --- DETECTARE PLATFORMĂ ---
@@ -58,17 +70,21 @@ async function translateWithGoogle(text) {
         const res = await translate(text, { to: 'ro' });
         return res.text;
     } catch (err) {
+        console.error("Google Translate error:", err);
         return text;
     }
 }
 
-// --- 3. TRADUCERE GPT CU STREAMING (MATRIX STYLE) ---
+// --- 3. TRADUCERE GPT CU STREAMING ---
 async function translateWithGPT(text) {
     if (!text || text.length < 5) return "Nu există suficient text.";
-    const textToTranslate = text.substring(0, 3000);
+    if (!OPENAI_API_KEY) {
+        console.warn("⚠️ OPENAI_API_KEY lipsește! Folosesc Google Translate.");
+        return await translateWithGoogle(text);
+    }
 
+    const textToTranslate = text.substring(0, 3000);
     console.log("\n🤖 GPT-4o-mini începe traducerea:");
-    console.log("------------------------------------------------");
 
     try {
         const response = await axios.post('https://api.openai.com/v1/chat/completions', {
@@ -109,21 +125,23 @@ async function translateWithGPT(text) {
             });
 
             response.data.on('end', () => {
-                console.log("\n------------------------------------------------");
-                console.log("✅ Gata! Traducerea completă salvată.");
+                console.log("\n✅ Traducere GPT completă");
                 resolve(fullTranslation);
             });
 
-            response.data.on('error', (err) => reject(err));
+            response.data.on('error', (err) => {
+                console.error("Stream error:", err);
+                reject(err);
+            });
         });
 
     } catch (error) {
-        console.warn("\n⚠️ Eroare OpenAI Stream:", error.message);
+        console.warn("\n⚠️ Eroare OpenAI:", error.message);
         return await translateWithGoogle(text);
     }
 }
 
-// --- 4. LOGICA DOWNLOADER ---
+// --- 4. TRANSCRIPT ---
 async function getOriginalTranscript(url) {
     const uniqueId = Date.now();
     const outputTemplate = path.join(__dirname, `trans_${uniqueId}`);
@@ -161,7 +179,11 @@ function getYtMetadata(url) {
         let buffer = '';
         process.stdout.on('data', d => buffer += d);
         process.on('close', () => {
-            try { resolve(JSON.parse(buffer)); } catch (e) { resolve({ title: "Video", description: "" }); }
+            try { 
+                resolve(JSON.parse(buffer)); 
+            } catch (e) { 
+                resolve({ title: "Video", description: "", duration_string: "0:00" }); 
+            }
         });
     });
 }
@@ -198,35 +220,48 @@ app.get('/api/download', async (req, res) => {
             console.log(`⏩ ${platform} - skip transcript (doar download)`);
         }
 
+        // Obținem URL-ul real de la Railway
+        const serverUrl = `https://${req.get('host')}`;
+        
         const formats = [
-            { quality: 'Video HD (MP4)', url: `http://localhost:${PORT}/api/stream?type=video&url=${encodeURIComponent(videoUrl)}` },
-            { quality: 'Audio Only (MP3)', url: `http://localhost:${PORT}/api/stream?type=audio&url=${encodeURIComponent(videoUrl)}` }
+            { quality: 'Video HD (MP4)', url: `${serverUrl}/api/stream?type=video&url=${encodeURIComponent(videoUrl)}` },
+            { quality: 'Audio Only (MP3)', url: `${serverUrl}/api/stream?type=audio&url=${encodeURIComponent(videoUrl)}` }
         ];
 
         res.json({
             status: 'ok',
             data: {
                 title: metadata.title,
-                duration: metadata.duration_string,
+                duration: metadata.duration_string || '0:00',
                 formats: formats,
-                transcript: transcriptData // Null pentru non-YouTube
+                transcript: transcriptData
             }
         });
 
     } catch (error) {
-        console.error(error);
-        res.status(500).json({ error: 'Eroare internă.' });
+        console.error("Download error:", error);
+        res.status(500).json({ error: error.message || 'Eroare internă.' });
     }
 });
 
 app.get('/api/stream', (req, res) => {
     const { url, type } = req.query;
+    if (!url) return res.status(400).send('URL lipsă');
+
     res.setHeader('Content-Disposition', `attachment; filename="${type === 'audio' ? 'audio.mp3' : 'video.mp4'}"`);
     const args = ['-o', '-', '--no-check-certificates', '--force-ipv4', '-f', type === 'audio' ? 'bestaudio' : 'best', url];
     const process = spawn(YTDLP_PATH, args);
     process.stdout.pipe(res);
+    process.on('error', (err) => {
+        console.error('Stream error:', err);
+        res.status(500).send('Streaming failed');
+    });
 });
 
-app.listen(PORT, () => {
-    console.log(`📥 Downloader Pro (Smart Transcript) pornit pe ${PORT}`);
+// START SERVER
+app.listen(PORT, '0.0.0.0', () => {
+    console.log(`🚀 Server running on port ${PORT}`);
+    console.log(`📥 Downloader Pro (Smart Transcript) pornit!`);
+    console.log(`Platform: ${process.platform}`);
+    console.log(`yt-dlp path: ${YTDLP_PATH}`);
 });
