@@ -5,7 +5,7 @@ const path = require('path');
 const fs = require('fs');
 const axios = require('axios');
 const { translate } = require('@vitalets/google-translate-api'); 
-
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const app = express();
 
 app.use(cors());
