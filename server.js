@@ -8,10 +8,12 @@ const { translate } = require('@vitalets/google-translate-api');
 
 const app = express();
 
-// CORS configurat corect pentru Netlify
+// CORS permisiv (pentru testare)
 app.use(cors({
-    origin: ['https://adorable-naiad-60e1be.netlify.app', 'http://localhost:5500'],
-    credentials: true
+    origin: '*',
+    credentials: false,
+    methods: ['GET', 'POST', 'OPTIONS'],
+    allowedHeaders: ['Content-Type']
 }));
 
 app.use(express.json());
