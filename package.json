@@ -5,7 +5,8 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "nodemon server.js"
+    "dev": "nodemon server.js",
+    "postinstall": "node -e \"const{execSync}=require('child_process');try{execSync('yt-dlp --version')}catch(e){console.log('Installing yt-dlp...');execSync('curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp && chmod a+rx /usr/local/bin/yt-dlp')}\""
   },
   "engines": {
     "node": ">=18.0.0",

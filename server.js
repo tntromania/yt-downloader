@@ -16,9 +16,31 @@ app.use(cors({
 
 app.use(express.json());
 
-// Detectăm dacă rulăm pe Windows sau pe Linux (Railway)
+// Detectăm yt-dlp în multiple locații
 const isWindows = process.platform === "win32";
-const YTDLP_PATH = isWindows ? path.join(__dirname, 'yt-dlp.exe') : 'yt-dlp';
+function findYtDlp() {
+    if (isWindows) return path.join(__dirname, 'yt-dlp.exe');
+    
+    // Încercăm mai multe locații pe Linux
+    const locations = [
+        '/tmp/yt-dlp',
+        '/usr/local/bin/yt-dlp',
+        '/usr/bin/yt-dlp',
+        'yt-dlp'
+    ];
+    
+    for (const loc of locations) {
+        if (fs.existsSync(loc)) {
+            console.log(`✅ yt-dlp găsit la: ${loc}`);
+            return loc;
+        }
+    }
+    
+    console.log('⚠️ yt-dlp nu a fost găsit, folosesc "yt-dlp" (PATH)');
+    return 'yt-dlp';
+}
+
+const YTDLP_PATH = findYtDlp();
 
 // API KEY (pune-l în Railway Environment Variables!)
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY || '';
